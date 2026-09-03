@@ -4,6 +4,8 @@ import streamlit as st
 from PIL import Image  
 from google import genai
 from google.genai import types
+import requests
+from weather import get_live_weather
 
 # -----------------------------------------------------------------------------
 # 1. Page Configuration
@@ -102,24 +104,44 @@ if uploaded_file is not None:
     st.image(image, caption="Uploaded Image Preview", use_container_width=True)
 
 if st.button("Get Answer / उत्तर मिळवा"):
-    # Require at least text or an image
+# --- ADD UI FOR LOCATION ABOVE YOUR TEXT QUERY ---
+location = st.text_input("📍 Enter your location / तुमची जागा किंवा गाव निवडा:", "Buldhana")
+weather_info = get_live_weather(location)
+
+if "error" not in weather_info:
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Temperature", f"{weather_info['temp']} °C")
+    col2.metric("Humidity", f"{weather_info['humidity']} %")
+    col3.metric("Condition", weather_info['condition'].capitalize())
+else:
+    st.info(f"ℹ️ {weather_info['error']}")
+
+# --- MODIFY YOUR PROMPT BUILDING INSIDE THE BUTTON ACTION ---
+if st.button("Get Answer / उत्तर मिळवा"):
     if not user_query.strip() and image is None:
-        st.warning("Please enter a question or upload an image! / कृपया प्रश्न टाका किंवा फोटो अपलोड करा!")
+        st.warning("Please enter a question or upload an image!")
     else:
-        with st.spinner("Analyzing your query..."):
+        with st.spinner("Analyzing..."):
             try:
-                # 3. Build contents list dynamically based on user input
                 contents = []
-                
                 if image:
                     contents.append(image)
+
+                # Append live weather string to the prompt
+                weather_context = ""
+                if "error" not in weather_info:
+                    weather_context = f"\n[Live Weather Data: {weather_info['raw_text']}]"
+
+                prompt_text = user_query.strip() if user_query.strip() else "Please examine this crop/leaf image."
+                prompt_text += weather_context
                 
-                # Default prompt if user uploads an image without writing text
-                prompt_text = user_query.strip() if user_query.strip() else "Please analyze this crop/leaf image and identify any disease, pest, or deficiency."
                 contents.append(prompt_text)
 
-                # Send request to Gemini API
                 answer = generate_content_with_retry(contents)
+                st.success("Advice / सल्ला:")
+                st.write(answer)
+            except Exception as e:
+                st.error(f"Error connecting to AI: {e}")
                 st.success("Advice / सल्ला:")
                 st.write(answer)
             except Exception as e:
