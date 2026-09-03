@@ -1,10 +1,10 @@
 import os
 import time
+import requests
 import streamlit as st
 from PIL import Image  
 from google import genai
 from google.genai import types
-import requests
 from weather import get_live_weather
 
 # -----------------------------------------------------------------------------
@@ -39,8 +39,9 @@ You are an expert agricultural assistant for rural farmers in India.
 Your job is to provide short, accurate, and easy-to-understand advice about:
 - Crop diseases and pest management (including analyzing images of damaged plants/leaves)
 - Fertilizers and soil health
-- Weather precautions and irrigation
+- Weather precautions, irrigation, and preventive spraying based on live weather data.
 Always respond in simple terms, using the same language the farmer uses (e.g., Marathi, Hindi, English).
+If live weather data is provided, use it to give specific advice (e.g., advising against pesticide spraying if rain is expected).
 """
 
 PRIMARY_MODEL = "gemini-2.5-flash"
@@ -85,28 +86,11 @@ def generate_content_with_retry(contents: list) -> str:
         raise final_err
 
 # -----------------------------------------------------------------------------
-# 4. User Input Box, File Uploader & Processing
+# 4. Weather & User Input Interface
 # -----------------------------------------------------------------------------
-# Text Input
-user_query = st.text_input("Enter your crop question / तुमचा प्रश्न इथे लिहा:")
-
-# 2. File Uploader for Crop/Pest Images
-uploaded_file = st.file_uploader(
-    "Upload a crop/leaf image (optional) / पिकाचे किंवा पानाचे छायाचित्र अपलोड करा:",
-    type=["jpg", "jpeg", "png"]
-)
-
-image = None
-if uploaded_file is not None:
-    # Open image using PIL
-    image = Image.open(uploaded_file)
-    # Preview image in UI
-    st.image(image, caption="Uploaded Image Preview", use_container_width=True)
-
-if st.button("Get Answer / उत्तर मिळवा"):
-# --- ADD UI FOR LOCATION ABOVE YOUR TEXT QUERY ---
-    location = st.text_input("📍 Enter your location / तुमची जागा किंवा गाव निवडा:", "Buldhana")
-    weather_info = get_live_weather(location)
+# Location Input & Live Weather Display
+location = st.text_input("📍 Enter your location / तुमची जागा किंवा गाव निवडा:", "Buldhana")
+weather_info = get_live_weather(location)
 
 if "error" not in weather_info:
     col1, col2, col3 = st.columns(3)
@@ -116,32 +100,44 @@ if "error" not in weather_info:
 else:
     st.info(f"ℹ️ {weather_info['error']}")
 
-# --- MODIFY YOUR PROMPT BUILDING INSIDE THE BUTTON ACTION ---
-if st.button("Get Answer / उत्तर मिळवा"):
+# Query & Image Input Box
+user_query = st.text_input("💬 Enter your crop question / तुमचा प्रश्न इथे लिहा:")
+
+uploaded_file = st.file_uploader(
+    "📷 Upload a crop/leaf image (optional) / पिकाचे किंवा पानाचे छायाचित्र अपलोड करा:",
+    type=["jpg", "jpeg", "png"]
+)
+
+image = None
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image Preview", use_container_width=True)
+
+# -----------------------------------------------------------------------------
+# 5. Process Request
+# -----------------------------------------------------------------------------
+if st.button("Get Answer / उत्तर मिळवा", type="primary"):
     if not user_query.strip() and image is None:
-        st.warning("Please enter a question or upload an image!")
+        st.warning("Please enter a question or upload an image! / कृपया प्रश्न टाका किंवा फोटो अपलोड करा!")
     else:
-        with st.spinner("Analyzing..."):
+        with st.spinner("Analyzing your query and checking live field conditions..."):
             try:
                 contents = []
                 if image:
                     contents.append(image)
 
-                # Append live weather string to the prompt
+                # Inject live weather data into the prompt
                 weather_context = ""
                 if "error" not in weather_info:
                     weather_context = f"\n[Live Weather Data: {weather_info['raw_text']}]"
 
-                prompt_text = user_query.strip() if user_query.strip() else "Please examine this crop/leaf image."
+                prompt_text = user_query.strip() if user_query.strip() else "Please analyze this crop/leaf image for diseases, pests, or deficiencies."
                 prompt_text += weather_context
                 
                 contents.append(prompt_text)
 
+                # Send request to Gemini API
                 answer = generate_content_with_retry(contents)
-                st.success("Advice / सल्ला:")
-                st.write(answer)
-            except Exception as e:
-                st.error(f"Error connecting to AI: {e}")
                 st.success("Advice / सल्ला:")
                 st.write(answer)
             except Exception as e:
