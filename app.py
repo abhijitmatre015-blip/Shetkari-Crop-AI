@@ -105,8 +105,8 @@ if uploaded_file is not None:
 
 if st.button("Get Answer / उत्तर मिळवा"):
 # --- ADD UI FOR LOCATION ABOVE YOUR TEXT QUERY ---
-location = st.text_input("📍 Enter your location / तुमची जागा किंवा गाव निवडा:", "Buldhana")
-weather_info = get_live_weather(location)
+    location = st.text_input("📍 Enter your location / तुमची जागा किंवा गाव निवडा:", "Buldhana")
+    weather_info = get_live_weather(location)
 
 if "error" not in weather_info:
     col1, col2, col3 = st.columns(3)
