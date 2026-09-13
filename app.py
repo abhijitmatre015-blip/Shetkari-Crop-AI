@@ -2,17 +2,91 @@ import os
 import time
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image  
 from google import genai
 from google.genai import types
 from weather import get_live_weather
 
 # -----------------------------------------------------------------------------
-# 1. Page Configuration
+# 1. Page Configuration & Custom HTML/CSS/JS Injection
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="Crop AI Assistant", page_icon="🌾")
-st.title("🌾 Shetkari AI / Farmer Crop Assistant")
-st.write("Ask any questions or upload a photo of your crop/pest in your local language!")
+st.set_page_config(page_title="Crop AI Assistant", page_icon="🌾", layout="centered")
+
+# Custom CSS for Modern AgTech Styling
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    
+    /* Main Background Accent */
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f6 100%);
+    }
+
+    /* Custom Header Styling */
+    .app-header {
+        background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px -5px rgba(6, 78, 59, 0.25);
+        margin-bottom: 24px;
+        text-align: center;
+    }
+    .app-header h1 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0;
+        color: #ffffff;
+    }
+    .app-header p {
+        font-size: 1rem;
+        color: #a7f3d0;
+        margin-top: 8px;
+        margin-bottom: 0;
+    }
+
+    /* Metric Cards Custom Styling */
+    [data-testid="stMetric"] {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        text-align: center;
+    }
+    
+    /* Primary Action Button Custom Styling */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+    .stButton > button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Custom HTML Banner Component
+st.markdown("""
+<div class="app-header">
+    <h1>🌾 Shetkari AI / Farmer Crop Assistant</h1>
+    <p>Ask any questions or upload a photo of your crop/pest in your local language!</p>
+</div>
+""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 2. API & Client Configuration
@@ -133,12 +207,20 @@ if st.button("Get Answer / उत्तर मिळवा", type="primary"):
 
                 prompt_text = user_query.strip() if user_query.strip() else "Please analyze this crop/leaf image for diseases, pests, or deficiencies."
                 prompt_text += weather_context
-                
+
                 contents.append(prompt_text)
 
                 # Send request to Gemini API
                 answer = generate_content_with_retry(contents)
                 st.success("Advice / सल्ला:")
                 st.write(answer)
+
+                # Custom JavaScript Execution upon Successful Analysis
+                components.html("""
+                <script>
+                    console.log("Shetkari AI analysis successfully completed.");
+                </script>
+                """, height=0)
+
             except Exception as e:
                 st.error(f"Error connecting to AI: {e}")
